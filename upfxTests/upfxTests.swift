@@ -31,9 +31,33 @@ struct upfxTests {
     }
 
     @Test func retreiveToday() async throws {
+        let nController = NetworkController.shared
         let date = Date()
-        let nController = NetworkController()
+        if let rates = nController.ratesController.searchRatesLocallyFor(date: date) {
+            print("Found rates, total pairs: \(rates.exchangeRateJson.count)")
+            return
+        } else {
+            try await nController.processJSON(for: date)
+        }
+        #expect(nController.ratesController.searchRatesLocallyFor(date: date) != nil)
+    }
+    @Test("Testing CNY HKD pairs")
+    func retreiveCNYHKDRate() async throws {
+        let date = Date()
+        let nController = NetworkController.shared
         try await nController.processJSON(for: date)
-        #expect(nController.ratesFor(date: date) != nil)
+        var result: Double = -1.0
+        if let rates = nController.ratesController.searchRatesLocallyFor(date: date) {
+            if let rate = rates.exchangeRateJson.first(where: {$0.baseCur == "CNY" && $0.transCur == "HKD"}) {
+                result = 1000.0 * rate.rateData
+            }
+        }
+        #expect(result > 0, "Result must be greater than 0")
+        print("Testing 1000 HKD to CNY---\(result)")
+    }
+    @Test func deleteToday() async throws {
+        let shared = RatesController.shared
+        _ = shared.removeRatesOn(date: .init())
+        #expect(shared.searchRatesLocallyFor(date: .init()) == nil)
     }
 }
